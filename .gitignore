@@ -1,0 +1,17 @@
+node_modules/
+dist/
+output/
+test-results/
+playwright-report/
+generated/
+# Confidential sources are never part of the shared source tree.
+inventory/source.*
+inventory/local.settings.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,23 @@
+{
+  "name": "benchwork",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "dev": "npm run build && npm start",
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "playwright test --config test/playwright.config.mjs",
+    "inventory:validate": "node inventory/convert.mjs --validate",
+    "inventory:convert": "node inventory/convert.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "esbuild": "0.25.12",
+    "exceljs": "4.4.0"
+  },
+  "description": "Standalone browser-based Buffer Making and Cocktail Making workbench with Demo inventory.",
+  "engines": {
+    "node": ">=22"
+  }
+}

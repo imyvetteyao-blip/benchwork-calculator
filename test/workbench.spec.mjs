@@ -1,0 +1,47 @@
+import { test, expect } from "@playwright/test";
+import ExcelJS from "exceljs";
+import { field } from "./fixture.mjs";
+test("public homepage labels the Demo source and offers browser-only local selection", async ({ page }) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("./");
+  await expect(page.getByRole("heading", { name: "Buffer Making", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Buffer Making", exact: true }).click();
+  await expect(page.getByText("Demo inventory", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Inventory Updated:/)).toBeVisible();
+  await expect(page.locator("#local-inventory-file")).toBeVisible();
+  await expect(page.locator("[data-map],#sheet-index,#header-row")).toHaveCount(0);
+  await expect(page.locator(".inventory-source-label")).toContainText("Published Demo inventory");
+  await expect(page.getByRole("button", { name: /Load demo inventory/ })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+test("S/IS A/B/C calculations, save/reopen, review invalidation and Excel remain intact", async ({ page }) => {
+  await page.goto("#sis");
+  await page.getByRole("button", { name: "Load A / B / C demo" }).click();
+  const rows = page.locator(".plan-table tbody tr");
+  for (const [i, v] of ["1200.00", "600.00", "1200.00"].entries()) await expect(rows.nth(i).locator("td").nth(3)).toHaveText(v);
+  await page.getByRole("button", { name: "Confirm volume plan", exact: true }).click();
+  await page.getByRole("button", { name: "Mark Reviewed", exact: true }).click();
+  await page.getByRole("button", { name: "Save Preparation Record", exact: true }).first().click();
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem("lab-preparation-workbench.records.v1"))[0]);
+  expect(before.status).toBe("Reviewed");
+  const event = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export Preparation Excel" }).click();
+  const w = new ExcelJS.Workbook();
+  await w.xlsx.readFile(await (await event).path());
+  expect(w.getWorksheet("Cocktails")).toBeTruthy();
+  await page.reload();
+  await page.getByRole("link", { name: "Records", exact: true }).click();
+  await page.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(field(page, "name")).toHaveValue(before.inputs.name);
+  await field(page, "cocktails.0.stocks.S.target").fill("110");
+  await expect(page.getByRole("button", { name: "Confirm volume plan", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mark Reviewed" })).toBeDisabled();
+});
+test("narrow S/IS adapts its data tables to the page width", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("#sis");
+  await page.getByRole("button", { name: "Load A / B / C demo" }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await expect(page.getByRole("button", { name: "Confirm volume plan", exact: true })).toBeVisible();
+});
