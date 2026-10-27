@@ -223,6 +223,47 @@ p {
 .panel-body {
   padding: 22px;
 }
+.component-heading-copy {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+.component-heading-copy .help {
+  margin: 7px 0 0;
+}
+.manual-entry-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: 12px 22px;
+}
+.manual-entry-controls .help {
+  margin: 0;
+}
+#manual-component-dialog {
+  width: min(680px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+#manual-component-dialog .grid {
+  margin-top: 12px;
+}
+.manual-name-field {
+  grid-column: 1 / -1;
+}
+.manual-component-actions {
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+#manual-component-dialog [hidden] {
+  display: none;
+}
+@media (max-width: 700px) {
+  #manual-component-dialog .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .eyebrow {
   font-size: 11px;
   color: var(--teal);

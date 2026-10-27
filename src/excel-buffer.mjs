@@ -1,7 +1,8 @@
 import { massMg, volumeUL, concentrationMM } from "./calculations.mjs";
-import { vendorDescription } from "./inventory-view.mjs";
+import { vendorDescription, SUPPLIER_DETAILS_LABEL } from "./inventory-view.mjs";
 import { formatResult, excelResultFormat } from "./format.mjs";
 import { calendarDateInfo } from "./calendar-date.mjs";
+import { isManualComponent, manualComponentValues } from "./manual-component.mjs";
 const number = (v) => (v == null || String(v).trim() === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 const positive = (v) => (number(v) > 0 ? number(v) : null);
 const converted = (v, u, fn) => {
@@ -161,7 +162,9 @@ export function writeBufferPreparation(wb, record, status) {
       });
       row.height = Math.min(409, lines * 14 + 7);
       const component = record.inputs.components.find((c) => c.id === r.id);
-      row.getCell(1).note = `Inventory snapshot version: ${component?.inventoryVersion || "Unversioned snapshot"}`;
+      row.getCell(1).note = isManualComponent(component)
+        ? `Source: Manual entry (not linked to inventory).${manualComponentValues(component).cas ? `\nCAS: ${manualComponentValues(component).cas}` : ""}`
+        : `Inventory snapshot version: ${component?.inventoryVersion || "Unversioned snapshot"}`;
       if (name === "Components" && row.getCell(8).value != null)
         row.getCell(8).note =
           `Original recorded mass: ${component?.actualMass || "not recorded"} ${component?.massUnit || ""}\nOriginal recorded volume: ${component?.actualLiquid || "not recorded"} ${component?.liquidUnit || ""}\nOnly the selected observation basis is used; displayed values are rounded, recorded inputs are not.`;
@@ -170,7 +173,17 @@ export function writeBufferPreparation(wb, record, status) {
   table(
     "Components",
     compHeader,
-    ["Chemical", "Vendor", "MW (g/mol)", "Target Conc.", "Density (g/mL)", "Target Mass (mg)", "Target Volume (µL)", "Observation", "Error (%)"],
+    [
+      "Chemical",
+      SUPPLIER_DETAILS_LABEL,
+      "MW (g/mol)",
+      "Target Conc.",
+      "Density (g/mL)",
+      "Target Mass (mg)",
+      "Target Volume (µL)",
+      "Observation",
+      "Error (%)",
+    ],
     rows.components,
     [5, 6, 8],
     [8],

@@ -2,6 +2,8 @@
 
 The shareable release contains **Demo inventory only**. The source is `inventory/demo.csv`; its two entries use a Demo supplier, Demo locations/Lot values, and `DEMO-` barcodes. The website identifies Demo inventory as examples, not a company inventory.
 
+For an individual compound not in inventory, use **Buffer Making → Components → Add Manual Component**. This stores a preparation-only component, labelled Manual entry, without changing this inventory or requiring an inventory file. Name is required; missing calculation parameters and optional supplier identifiers can be completed later. Saved records retain the manual entry and Excel identifies its source.
+
 ## Update the shareable Demo
 
 1. Replace `inventory/demo.csv` with the revised Demo data, retaining the fixed headers and clearly labelled Demo identifiers.
@@ -23,6 +25,8 @@ The build validates and converts the source before writing release files. Empty 
 `src/inventory-config.mjs` is the central configuration for header position, worksheet selection, field aliases, and legacy encoding. Required headers are **Chemical Name**, **CAS**, and **Barcode**. Molecular Weight and Density are optional and may be entered later on a component.
 
 The default header row is 1. If no exact worksheet name is configured, exactly one XLSX worksheet must match the required column contract. Multiple matching worksheets fail instead of guessing. Barcode values must be nonempty and unique. Names must be nonempty text. Supplied MW and Density must be positive numbers. Keep identifiers as text in XLSX to preserve leading zeros.
+
+Components and Excel show supplier information in **Brand, CAS, Lot, Barcode** order. An optional Brand column can coexist with Company; Brand is preferred for this summary, with Company/Vendor as the fallback for older templates. Inventory search retains its existing Company column and order. Vendor ID is preserved in raw snapshots but is not substituted for CAS or included in the compact supplier summary.
 
 CSV supports strict UTF-8, UTF-8 BOM, BOM-declared UTF-16, and the configured Windows-1252 legacy English Excel encoding. Set the actual legacy encoding in the central configuration if required by your source; do not replace unknown characters globally. CSV has no worksheet configuration.
 

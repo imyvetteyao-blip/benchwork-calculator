@@ -16,7 +16,7 @@ import {
 } from "./models.mjs";
 import { matchingRows, cleanInventorySearchText } from "./inventory.mjs";
 import { isMeaningful } from "./inventory-config.mjs";
-import { INVENTORY_COLUMNS, inventoryValue, summaryEntries, vendorDescription } from "./inventory-view.mjs";
+import { INVENTORY_COLUMNS, inventoryValue, summaryEntries, vendorDescription, SUPPLIER_DETAILS_LABEL } from "./inventory-view.mjs";
 import { loadBuiltinInventory } from "./builtin-inventory.mjs";
 import { readLocalInventory, localInventoryReportText } from "./local-inventory.mjs";
 import { formatResult } from "./format.mjs";
@@ -24,6 +24,7 @@ import { createPreparationWorkbook } from "./excel.mjs";
 import { calendarDateInfo } from "./calendar-date.mjs";
 import { bufferPresentationResults } from "./buffer-view.mjs";
 import { editableStockNumber, switchStockMode, cocktailPresentationResults } from "./cocktail-controls.mjs";
+import { createManualComponent, updateManualComponent, manualComponentValues, isManualComponent } from "./manual-component.mjs";
 
 const app = document.querySelector("#app");
 const editors = {
@@ -273,7 +274,7 @@ function bufferComponent(c, i, result) {
     method === "direct"
       ? `<div class="result-strip mass-error-strip"><div><small>Mass Deviation</small><strong>${fmt(r.massDeviationMg, true)} mg</strong></div><div><small>Mass Error (%)</small><strong>${fmt(r.massErrorPercent, true)}%</strong></div></div><p class="help">Positive = more mass than target; negative = less mass than target. No acceptance threshold is applied.${r.massErrorBasis === "Calculated from observed volume" ? " Mass error is calculated from observed volume." : ""}</p>`
       : "";
-  return `<section class="panel component-panel"><div class="panel-heading"><h2>${escape(c.name)} ${badge(`Component ${i + 1}`)}</h2>${button("remove-component", "Remove component", "small danger", `data-index="${i}"`)}</div><div class="snapshot" aria-label="Selected inventory row">${summaryEntries(
+  return `<section class="panel component-panel"><div class="panel-heading"><h2>${escape(c.name)} ${badge(`Component ${i + 1}`)}</h2>${button("remove-component", "Remove component", "small danger", `data-index="${i}"`)}</div>${isManualComponent(c) ? `<div class="manual-entry-controls"><p class="help">Manual entry · Saved with this preparation only; not linked to inventory.</p>${button("edit-manual-component", "Edit Manual Component", "small", `data-index="${i}"`)}</div>` : ""}<div class="snapshot" aria-label="${isManualComponent(c) ? "Manual component information" : "Selected inventory row"}">${summaryEntries(
     c.inventory,
   )
     .map(
@@ -339,63 +340,67 @@ function observationInput(c, i, r) {
   return compact(quantity(`${p}.actualMass`, "Observed Mass", `${p}.massUnit`, ["mg", "g"]));
 }
 function componentTable(b, results) {
-  if (!b.components.length) return '<div class="empty">No components yet. Search the current inventory and select Add Component.</div>';
-  return `<section class="panel"><div class="panel-heading"><h2>Components</h2><span class="help">Target Mass is calculated automatically from MW, Target Concentration and Target Volume. Expand Details for stock preparation, snapshots, formulas and review.</span></div><div class="component-grid-scroll" id="component-table-scroll" data-preserve-scroll><table class="component-grid"><colgroup>${[17, 10, 6, 12, 9, 8, 13, 6, 10, 9].map((w) => `<col style="width:${w}%">`).join("")}</colgroup><thead><tr>${["Chemical Name", "Vendor", "MW (g/mol)", "Target Concentration", "Target Mass (mg)", "Target Liquid Volume (µL)", "Observation", "Error (%)", "Preparation Method", "Review"].map((t) => `<th>${t}</th>`).join("")}</tr></thead><tbody>${b.components
-    .map((c, i) => {
-      const r = results.rows?.[i] || {},
-        p = `components.${i}`,
-        method = r.method || c.method,
-        expanded = expandedComponents.has(c.id),
-        vendor = vendorDescription(c);
-      const missingTargetInput = [
-        ["volume", b.volume, "Set Target Volume"],
-        [`${p}.mw`, c.mw, "Enter MW"],
-        [`${p}.target`, c.target, "Set Target Conc."],
-      ].find(([, value]) => value == null || String(value).trim() === "");
-      const targetMass =
-        r.requiredMg != null
-          ? fmt(r.requiredMg)
-          : missingTargetInput
-            ? button(
-                "focus-input",
-                missingTargetInput[2],
-                "small target-mass-prompt",
-                `data-path="${missingTargetInput[0]}" title="Target Mass needs MW, Target Concentration and Target Volume. Click to enter the missing value."`,
-              )
-            : button(
-                "target-mass-help",
-                "Check inputs",
-                "small target-mass-prompt",
-                `data-index="${i}" title="${escape(r.errors?.[0] || "Check MW, Target Concentration and Target Volume.")}"`,
-              );
-      const methods =
-        c.form === "solution"
-          ? [["existing", "Existing stock"]]
-          : r.forcedStock
-            ? [
-                ["new", "New stock"],
-                ["existing", "Existing stock"],
-              ]
-            : [
-                ["direct", "Direct"],
-                ["new", "New stock"],
-                ["existing", "Existing stock"],
-              ];
-      const main = `<tr class="component-row" data-component-id="${c.id}"><td><button class="cell-peek component-name" data-action="component-name" data-index="${i}" title="${escape(c.name)}"><span class="two-line">${escape(c.name)}</span></button>${button("toggle-component", expanded ? "Collapse" : "Details", "small", `data-id="${c.id}" aria-expanded="${expanded}"`)}${r.forcedStock ? '<span class="badge amber">Stock required</span>' : ""}</td><td><button class="cell-peek" data-action="vendor-detail" data-index="${i}" title="${escape(vendor)}"><span class="two-line">${escape(vendor)}</span></button></td><td>${compact(input(`${p}.mw`, "Molecular Weight (g/mol)"))}</td><td>${compact(quantity(`${p}.target`, "Target Concentration", `${p}.targetUnit`, units.concentration))}</td><td class="target-mass-cell">${targetMass}</td><td>${fmt(r.requiredLiquidUL)}${c.form === "pure-liquid" || c.form === "solution" ? `<span class="observation-kind">Density (g/mL)</span>${compact(input(`${p}.density`, "Density (g/mL)"))}` : ""}</td><td>${observationInput(c, i, r)}</td><td>${method === "direct" ? `${fmt(r.massErrorPercent, true)}${r.massErrorBasis === "Calculated from observed volume" ? '<span class="observation-kind">From observed volume</span>' : ""}` : "—"}</td><td>${compact(
-        select(`${p}.form`, "Physical Form", [
-          ["", "Physical form"],
-          ["solid", "Solid"],
-          ["pure-liquid", "Pure liquid"],
-          ["solution", "Known solution"],
-        ]),
-      )}${compact(select(`${p}.method`, "Preparation Method", methods))}</td><td>${button("remove-component", "Remove", "small danger", `data-index="${i}"`)}${badge(c.reviewed ? "Checked" : r.errors?.length ? "Incomplete" : "Needs review", c.reviewed ? "teal" : "amber")}</td></tr>`;
-      if (!expanded) return main;
-      fieldScope = `-detail-${c.id}`;
-      const detail = bufferComponent(c, i, r);
-      fieldScope = "";
-      return main + `<tr class="component-details"><td colspan="10">${detail}</td></tr>`;
-    })
-    .join("")}</tbody></table></div></section>`;
+  const heading = `<section class="panel"><div class="panel-heading"><div class="component-heading-copy"><h2>Components</h2><p class="help">Target Mass is calculated automatically from MW, Target Concentration and Target Volume. Expand Details for stock preparation, snapshots, formulas and review.</p></div>${button("add-manual-component", "Add Manual Component", "small primary")}</div>`;
+  if (!b.components.length) return heading + '<div class="empty">No components yet. Search inventory or select Add Manual Component.</div></section>';
+  return (
+    heading +
+    `<div class="component-grid-scroll" id="component-table-scroll" data-preserve-scroll><table class="component-grid"><colgroup>${[17, 10, 6, 12, 9, 8, 13, 6, 10, 9].map((w) => `<col style="width:${w}%">`).join("")}</colgroup><thead><tr>${["Chemical Name", SUPPLIER_DETAILS_LABEL, "MW (g/mol)", "Target Concentration", "Target Mass (mg)", "Target Liquid Volume (µL)", "Observation", "Error (%)", "Preparation Method", "Review"].map((t) => `<th>${t}</th>`).join("")}</tr></thead><tbody>${b.components
+      .map((c, i) => {
+        const r = results.rows?.[i] || {},
+          p = `components.${i}`,
+          method = r.method || c.method,
+          expanded = expandedComponents.has(c.id),
+          vendor = vendorDescription(c);
+        const missingTargetInput = [
+          ["volume", b.volume, "Set Target Volume"],
+          [`${p}.mw`, c.mw, "Enter MW"],
+          [`${p}.target`, c.target, "Set Target Conc."],
+        ].find(([, value]) => value == null || String(value).trim() === "");
+        const targetMass =
+          r.requiredMg != null
+            ? fmt(r.requiredMg)
+            : missingTargetInput
+              ? button(
+                  "focus-input",
+                  missingTargetInput[2],
+                  "small target-mass-prompt",
+                  `data-path="${missingTargetInput[0]}" title="Target Mass needs MW, Target Concentration and Target Volume. Click to enter the missing value."`,
+                )
+              : button(
+                  "target-mass-help",
+                  "Check inputs",
+                  "small target-mass-prompt",
+                  `data-index="${i}" title="${escape(r.errors?.[0] || "Check MW, Target Concentration and Target Volume.")}"`,
+                );
+        const methods =
+          c.form === "solution"
+            ? [["existing", "Existing stock"]]
+            : r.forcedStock
+              ? [
+                  ["new", "New stock"],
+                  ["existing", "Existing stock"],
+                ]
+              : [
+                  ["direct", "Direct"],
+                  ["new", "New stock"],
+                  ["existing", "Existing stock"],
+                ];
+        const main = `<tr class="component-row" data-component-id="${c.id}"><td><button class="cell-peek component-name" data-action="component-name" data-index="${i}" title="${escape(c.name)}"><span class="two-line">${escape(c.name)}</span></button>${isManualComponent(c) ? badge("Manual entry", "teal") : ""}${button("toggle-component", expanded ? "Collapse" : "Details", "small", `data-id="${c.id}" aria-expanded="${expanded}"`)}${r.forcedStock ? '<span class="badge amber">Stock required</span>' : ""}</td><td><button class="cell-peek" data-action="vendor-detail" data-index="${i}" title="${escape(vendor)}"><span class="two-line">${escape(vendor)}</span></button></td><td>${compact(input(`${p}.mw`, "Molecular Weight (g/mol)"))}</td><td>${compact(quantity(`${p}.target`, "Target Concentration", `${p}.targetUnit`, units.concentration))}</td><td class="target-mass-cell">${targetMass}</td><td>${fmt(r.requiredLiquidUL)}${c.form === "pure-liquid" || c.form === "solution" ? `<span class="observation-kind">Density (g/mL)</span>${compact(input(`${p}.density`, "Density (g/mL)"))}` : ""}</td><td>${observationInput(c, i, r)}</td><td>${method === "direct" ? `${fmt(r.massErrorPercent, true)}${r.massErrorBasis === "Calculated from observed volume" ? '<span class="observation-kind">From observed volume</span>' : ""}` : "—"}</td><td>${compact(
+          select(`${p}.form`, "Physical Form", [
+            ["", "Physical form"],
+            ["solid", "Solid"],
+            ["pure-liquid", "Pure liquid"],
+            ["solution", "Known solution"],
+          ]),
+        )}${compact(select(`${p}.method`, "Preparation Method", methods))}</td><td>${button("remove-component", "Remove", "small danger", `data-index="${i}"`)}${badge(c.reviewed ? "Checked" : r.errors?.length ? "Incomplete" : "Needs review", c.reviewed ? "teal" : "amber")}</td></tr>`;
+        if (!expanded) return main;
+        fieldScope = `-detail-${c.id}`;
+        const detail = bufferComponent(c, i, r);
+        fieldScope = "";
+        return main + `<tr class="component-details"><td colspan="10">${detail}</td></tr>`;
+      })
+      .join("")}</tbody></table></div></section>`
+  );
 }
 function buffer() {
   const b = editor().inputs,
@@ -634,6 +639,63 @@ function showDetail(title, value) {
   document.querySelector("#detail-content").value = String(value ?? "");
   document.querySelector("#detail-dialog").showModal();
 }
+function showManualComponentDialog(index = null) {
+  if (route !== "buffer" || document.querySelector("#manual-component-dialog")) return;
+  const currentEditor = editor(),
+    existing = index == null ? null : currentEditor.inputs.components[index],
+    values = manualComponentValues(existing),
+    dialog = document.createElement("dialog");
+  dialog.id = "manual-component-dialog";
+  dialog.setAttribute("aria-labelledby", "manual-component-title");
+  dialog.setAttribute("aria-describedby", "manual-component-description");
+  const field = (key, label, required = false) =>
+    `<label class="field${key === "name" ? " manual-name-field" : ""}">${label}<input name="${key}" value="${escape(values[key])}" ${required ? "required" : ""} ${["mw", "density"].includes(key) ? 'inputmode="decimal"' : ""} autocomplete="off"></label>`;
+  dialog.innerHTML = `<form><h2 id="manual-component-title">${existing ? "Edit Manual Component" : "Add Manual Component"}</h2><p id="manual-component-description" class="help">Saved with this preparation only; not added to inventory. Chemical Name is required. Add calculation parameters now or complete them in the component row.</p><div class="notice error" role="alert" hidden></div><div class="grid two">${field("name", "Chemical Name", true)}<label class="field">Physical Form<select name="form" aria-label="Physical Form">${[
+    ["", "Select physical form"],
+    ["solid", "Solid"],
+    ["pure-liquid", "Pure liquid"],
+    ["solution", "Solution of known concentration"],
+  ]
+    .map(([v, label]) => `<option value="${v}" ${values.form === v ? "selected" : ""}>${label}</option>`)
+    .join(
+      "",
+    )}</select></label>${field("mw", "Molecular Weight (g/mol)")}${field("density", "Density (g/mL)")}</div><details><summary>Supplier and identifiers (optional)</summary><div class="grid two">${field("brand", "Brand (optional)")}${field("cas", "CAS (optional)")}${field("lot", "Lot (optional)")}${field("barcode", "Barcode (optional)")}</div></details><div class="actions manual-component-actions"><button type="button" data-manual-cancel>Cancel</button><button class="primary" type="submit">${existing ? "Save Component" : "Add Component"}</button></div></form>`;
+  // Keep the form outside the rendered app so a late inventory response cannot
+  // replace unsaved dialog inputs. No preparation changes occur before submit.
+  document.body.append(dialog);
+  const returnFocus = document.activeElement;
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+  });
+  dialog.querySelector("[data-manual-cancel]").addEventListener("click", () => dialog.close());
+  dialog.querySelector("form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      if (route !== "buffer" || editor() !== currentEditor) throw new Error("The preparation has changed. Close this form and open it again.");
+      const values = { ...manualComponentValues(existing), ...Object.fromEntries(new FormData(event.currentTarget)) },
+        component = existing ? updateManualComponent(existing, values) : createManualComponent(values),
+        position = existing ? currentEditor.inputs.components.findIndex((c) => c.id === existing.id) : currentEditor.inputs.components.length;
+      if (position < 0) throw new Error("This component is no longer in the preparation.");
+      invalidate();
+      if (existing) currentEditor.inputs.components[position] = component;
+      else currentEditor.inputs.components.push(component);
+      normalizePreparationMethods();
+      dialog.close();
+      render();
+      const target = document.querySelector(`[data-path="components.${position}.${component.mw ? "target" : "mw"}"]`);
+      target?.scrollIntoView({ block: "center", inline: "nearest" });
+      target?.focus({ preventScroll: true });
+      toast(existing ? "Manual component updated. Review the calculation again." : "Manual component added to this preparation.");
+    } catch (error) {
+      const message = dialog.querySelector('[role="alert"]');
+      message.textContent = error.message;
+      message.hidden = false;
+    }
+  });
+  dialog.showModal();
+  dialog.querySelector('[name="name"]').focus();
+}
 app.addEventListener("paste", (event) => {
   const target = event.target;
   if (target.id !== "inventory-query" || !event.clipboardData) return;
@@ -711,6 +773,10 @@ app.addEventListener("click", async (event) => {
   const action = b.dataset.action,
     e = editor();
   try {
+    if (action === "add-manual-component" || action === "edit-manual-component") {
+      showManualComponentDialog(action === "edit-manual-component" ? Number(b.dataset.index) : null);
+      return;
+    }
     if (action === "reload-inventory") {
       await refreshBuiltinInventory();
       return;
@@ -742,7 +808,7 @@ app.addEventListener("click", async (event) => {
       return;
     }
     if (action === "vendor-detail") {
-      showDetail("Vendor", vendorDescription(e.inputs.components[Number(b.dataset.index)]));
+      showDetail(SUPPLIER_DETAILS_LABEL, vendorDescription(e.inputs.components[Number(b.dataset.index)]));
       return;
     }
     if (action === "precision") {

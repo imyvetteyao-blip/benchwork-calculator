@@ -51,6 +51,16 @@ See [INVENTORY.md](INVENTORY.md) for the fixed schema, encoding, validation, ver
 
 This project has **no authentication or access control**. Any inventory included in a static deployment is downloadable. Hosting on a private Git repository does not by itself guarantee a private website.
 
+## Manually entered components
+
+In **Buffer Making → Components**, select **Add Manual Component** for a compound that is absent from inventory. Only Chemical Name is required to create a draft component. Molecular Weight, Physical Form, Density, and optional supplier/CAS/Barcode/Lot details can be entered in the dialog; calculation parameters can also be completed later in the normal component row. No properties are inferred from a name. Existing calculation and review requirements still apply.
+
+Manual components are labelled **Manual entry** and belong only to the current preparation. They do not add to or replace the built-in or local search inventory, do not take its version, and do not require the inventory to load successfully. They use the same direct, new-stock, existing-stock, observation, error, and Excel workflows as inventory-selected components. **Details → Edit Manual Component** changes name/metadata without discarding target or observed quantities; editing invalidates review. Cancel leaves the preparation unchanged.
+
+The supplier form and compact page/Excel information use **Brand → CAS → Lot → Barcode**, for example `VMR, CAS Z0014, Lot AD32345, Barcode GCR000888`. An explicit Brand is preferred; older inventory Company/Vendor values remain available as the fallback brand. CAS is taken only from the CAS field and is kept as entered, never inferred from Vendor ID. Legacy Vendor ID data remains in saved raw snapshots but is omitted from this display. Missing details are omitted, and identifiers remain text.
+
+Saved and reopened records retain manual provenance and supplied metadata. Excel includes their normal calculation/vendor rows and identifies manual provenance (and optional CAS) in the chemical cell note. Missing identifiers remain blank; none are generated.
+
 ## Preparation records and compatibility
 
 Preparation records live in the browser's local storage; **they are not part of this source code, release archive, build output, or Git repository**. Selected inventory rows, versions, observations, and full-precision calculation snapshots are saved with each record. An inventory update does not rewrite existing component snapshots.

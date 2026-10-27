@@ -28,7 +28,9 @@ export const INVENTORY_CONFIG = {
       label: "Vendor / Company",
       aliases: ["Vendor / Company", "Vendor", "Company", "Supplier", "Manufacturer"],
     },
+    brand: { label: "Brand", aliases: ["Brand", "Manufacturer Brand"] },
     vendorId: {
+      // Retained in raw snapshots; the compact supplier display uses CAS.
       label: "Vendor ID",
       aliases: ["Vendor ID", "VendorID", "Catalog Number", "Catalogue Number", "Catalog #", "Product Number"],
     },
@@ -77,7 +79,7 @@ export function componentMapping(component) {
 export function supplierFields(component) {
   const mapping = componentMapping(component);
   return Object.fromEntries(
-    ["barcode", "cas", "vendor", "vendorId", "lot", "id"].map((k) => [
+    ["brand", "barcode", "cas", "vendor", "vendorId", "lot", "id"].map((k) => [
       k,
       isMeaningful(component.inventory?.[mapping[k]]) ? String(component.inventory[mapping[k]]) : null,
     ]),

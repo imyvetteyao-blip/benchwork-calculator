@@ -228,7 +228,7 @@ test("Excel uses A/B/C sections on one sheet, nine component columns and per-sto
   assert.equal(s.getCell("B5").value, "B001");
   assert.deepEqual(s.getRow(14).values.slice(1), [
     "Chemical",
-    "Vendor",
+    "Brand / CAS / Lot / Barcode",
     "MW (g/mol)",
     "Target Conc.",
     "Density (g/mL)",
@@ -237,7 +237,7 @@ test("Excel uses A/B/C sections on one sheet, nine component columns and per-sto
     "Observation",
     "Error (%)",
   ]);
-  assert.match(s.getCell("B15").value, /TCI, ID A2485, Lot RPJCH-OR, Barcode 0000123/);
+  assert.match(s.getCell("B15").value, /TCI, CAS 56-40-6, Lot RPJCH-OR, Barcode 0000123/);
   assert.equal(s.getCell("I15").value, 1);
   assert.match(s.getCell("H16").value, /Stock weighing/);
   assert.equal(s.getCell("I16").value, null);

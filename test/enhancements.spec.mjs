@@ -50,7 +50,7 @@ test("compact table defaults to one row per component; summary hides named field
   await expect(page.locator(".component-details")).toHaveCount(0);
   await expect(page.locator(".component-grid th")).toHaveText([
     "Chemical Name",
-    "Vendor",
+    "Brand / CAS / Lot / Barcode",
     "MW (g/mol)",
     "Target Concentration",
     "Target Mass (mg)",

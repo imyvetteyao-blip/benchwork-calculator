@@ -1,4 +1,5 @@
 import { isMeaningful, componentMapping, supplierFields, INVENTORY_CONFIG, normalizeHeader } from "./inventory-config.mjs";
+export const SUPPLIER_DETAILS_LABEL = "Brand / CAS / Lot / Barcode";
 export const INVENTORY_COLUMNS = [
   ["name", "Chemical Name", 265],
   ["location", "Location", 145],
@@ -41,8 +42,8 @@ export function vendorDescription(c) {
       .join("; ");
   }
   return [
-    f.vendor || ambiguous("vendor"),
-    f.vendorId ? `ID ${f.vendorId}` : ambiguous("vendorId"),
+    f.brand || ambiguous("brand") || f.vendor || ambiguous("vendor"),
+    f.cas ? `CAS ${f.cas}` : null,
     f.lot ? `Lot ${f.lot}` : null,
     f.barcode ? `Barcode ${f.barcode}` : null,
   ]
